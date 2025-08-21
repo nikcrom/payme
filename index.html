@@ -62,30 +62,56 @@
   <script>
 // ===== Stripe Payment Request Button =====
 const stripe = Stripe("pk_live_51RyVvaJZHuoDKxP5M5TtgRNsQt6UklE2821jmwfWIZVJUcWwKp8NK1xXM6o39ZVpvGyM9ZmS0u63DdykbSuIciv600OxmfmeHS");
+
+const paymentRequest = stripe.paymentRequest({
+  country: 'GB',
+  currency: 'gbp',
+  total: { label: 'Support Me', amount: 0 },
+  requestPayerName: true,
+  requestPayerEmail: true,
+});
+
 const elements = stripe.elements();
-const card = elements.create('card');
-card.mount('#payment-request-button');
+const prButton = elements.create('paymentRequestButton', { paymentRequest });
 
-document.getElementById('amount').addEventListener('change', async function(e) {
-  const amount = parseFloat(e.target.value || 0) * 100; // convert to pence
-  if (amount < 100) return;
+paymentRequest.canMakePayment().then(function(result) {
+  if (result) prButton.mount('#payment-request-button');
+  else document.getElementById('payment-request-button').style.display = 'none';
+});
 
-  // call backend to create PaymentIntent
-  const response = await fetch('/api/create-payment-intent', {
+document.getElementById('amount').addEventListener('input', function(e) {
+  const amount = Math.round(parseFloat(e.target.value || 0) * 100);
+  paymentRequest.update({ total: { label: 'Support Me', amount } });
+});
+
+paymentRequest.on('paymentmethod', async (ev) => {
+  const amount = Math.round(parseFloat(document.getElementById('amount').value || 0) * 100);
+
+  // 1. Call your serverless function to create PaymentIntent
+  const res = await fetch('/api/create-payment-intent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount }),
   });
-  const { clientSecret } = await response.json();
 
-  // confirm payment
-  const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-    payment_method: { card }
-  });
+  const data = await res.json();
 
-  if (error) alert('Payment failed: ' + error.message);
-  else if (paymentIntent.status === 'succeeded') alert('Payment succeeded!');
+  // 2. Confirm the payment
+  const { error } = await stripe.confirmCardPayment(
+    data.clientSecret,
+    { payment_method: ev.paymentMethod.id },
+    { handleActions: false }
+  );
+
+  if (error) {
+    ev.complete('fail');
+    alert(error.message);
+  } else {
+    ev.complete('success');
+    alert('Payment successful! 🎉');
+  }
 });
+
 
 
     // ===== Animated Paint Background =====
@@ -141,4 +167,5 @@ document.getElementById('amount').addEventListener('change', async function(e) {
   </script>
 </body>
 </html>
+
 
