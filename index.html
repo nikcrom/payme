@@ -60,29 +60,33 @@
   </div>
 
   <script>
-    // ===== Stripe Payment Button (working code) =====
-    const stripe = Stripe("pk_live_51RyVvaJZHuoDKxP5M5TtgRNsQt6UklE2821jmwfWIZVJUcWwKp8NK1xXM6o39ZVpvGyM9ZmS0u63DdykbSuIciv600OxmfmeHS"); 
+// ===== Stripe Payment Request Button =====
+const stripe = Stripe("pk_live_51RyVvaJZHuoDKxP5M5TtgRNsQt6UklE2821jmwfWIZVJUcWwKp8NK1xXM6o39ZVpvGyM9ZmS0u63DdykbSuIciv600OxmfmeHS");
+const elements = stripe.elements();
+const card = elements.create('card');
+card.mount('#payment-request-button');
 
-    const paymentRequest = stripe.paymentRequest({
-      country: 'GB',
-      currency: 'gbp',
-      total: { label: 'Support Me', amount: 0 },
-      requestPayerName: true,
-      requestPayerEmail: true,
-    });
+document.getElementById('amount').addEventListener('change', async function(e) {
+  const amount = parseFloat(e.target.value || 0) * 100; // convert to pence
+  if (amount < 100) return;
 
-    const elements = stripe.elements();
-    const prButton = elements.create('paymentRequestButton', { paymentRequest });
+  // call backend to create PaymentIntent
+  const response = await fetch('/api/create-payment-intent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount }),
+  });
+  const { clientSecret } = await response.json();
 
-    paymentRequest.canMakePayment().then(function(result) {
-      if (result) prButton.mount('#payment-request-button');
-      else document.getElementById('payment-request-button').style.display = 'none';
-    });
+  // confirm payment
+  const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+    payment_method: { card }
+  });
 
-    document.getElementById('amount').addEventListener('input', function(e) {
-      const amount = Math.round(parseFloat(e.target.value || 0) * 100);
-      paymentRequest.update({ total: { label: 'Support Me', amount: amount } });
-    });
+  if (error) alert('Payment failed: ' + error.message);
+  else if (paymentIntent.status === 'succeeded') alert('Payment succeeded!');
+});
+
 
     // ===== Animated Paint Background =====
     const canvas = document.getElementById("bg");
@@ -137,3 +141,4 @@
   </script>
 </body>
 </html>
+
