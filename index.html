@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One Tap Pay</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f9f9f9;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    input {
+      width: 100%;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    #payment-request-button {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Support Me</h2>
+    <p>Enter an amount (£):</p>
+    <input type="number" id="amount" placeholder="e.g. 5" min="1" step="0.01">
+    <div id="payment-request-button"></div>
+  </div>
+
+  <script>
+    const stripe = Stripe("pk_test_51RyVvnQq9irdI5zljZR2H5q3DaB49bE2tXnj5eUomiAhfUcQLNFlXA121pcayHqrLwF81BLq6Pz3DLOuaWDQyglZ00Gp7xe3ql"); // Replace with your publishable key
+
+    const paymentRequest = stripe.paymentRequest({
+      country: 'GB',
+      currency: 'gbp',
+      total: {
+        label: 'Support Me',
+        amount: 0,
+      },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+
+    const elements = stripe.elements();
+    const prButton = elements.create('paymentRequestButton', { paymentRequest });
+
+    paymentRequest.canMakePayment().then(function(result) {
+      if (result) {
+        prButton.mount('#payment-request-button');
+      } else {
+        document.getElementById('payment-request-button').style.display = 'none';
+      }
+    });
+
+    // Update payment amount dynamically
+    document.getElementById('amount').addEventListener('input', function(e) {
+      const amount = Math.round(parseFloat(e.target.value || 0) * 100);
+      paymentRequest.update({
+        total: {
+          label: 'Support Me',
+          amount: amount,
+        },
+      });
+    });
+  </script>
+</body>
+</html>
