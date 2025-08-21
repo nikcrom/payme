@@ -1,53 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pay Me</title>
-  <style>
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: #f9f9f9;
-      margin: 0;
-      font-family: Arial, sans-serif;
-    }
-    .container {
-      text-align: center;
-      background: white;
-      padding: 2rem;
-      border-radius: 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    h1 {
-      margin-bottom: 1rem;
-      font-size: 1.5rem;
-      color: #333;
-    }
-    button {
-      background: #635bff;
-      color: white;
-      border: none;
-      padding: 1rem 2rem;
-      font-size: 1.2rem;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
-    button:hover {
-      background: #5146d9;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pay Me</title>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Arial', sans-serif;
+    background: black;
+  }
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  #pay-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px 40px;
+    font-size: 1.5em;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    box-shadow: 0 0 20px rgba(255,255,255,0.5);
+    backdrop-filter: blur(5px);
+    transition: 0.3s;
+  }
+  #pay-button:hover {
+    box-shadow: 0 0 40px rgba(255,255,255,0.8);
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>Support My Work</h1>
-    <p>Click below to choose your amount and pay securely.</p>
-    <button onclick="window.location.href='pk_test_51RyVvnQq9irdI5zljZR2H5q3DaB49bE2tXnj5eUomiAhfUcQLNFlXA121pcayHqrLwF81BLq6Pz3DLOuaWDQyglZ00Gp7xe3ql'">
-      Pay Now
-    </button>
-  </div>
+
+<canvas id="bg"></canvas>
+<button id="pay-button">Pay Me</button>
+
+<script>
+  // ===== Stripe Setup =====
+  const stripe = Stripe("pk_test_51RyVvnQq9irdI5zljZR2H5q3DaB49bE2tXnj5eUomiAhfUcQLNFlXA121pcayHqrLwF81BLq6Pz3DLOuaWDQyglZ00Gp7xe3ql");
+
+  document.getElementById("pay-button").addEventListener("click", async () => {
+    const response = await fetch("/api/create-checkout-session", { method: "POST" });
+    const session = await response.json();
+    const result = await stripe.redirectToCheckout({ sessionId: session.id });
+    if (result.error) alert(result.error.message);
+  });
+
+  // ===== Animated Background =====
+  const canvas = document.getElementById("bg");
+  const ctx = canvas.getContext("2d");
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = [];
+  const colors = ["#8e44ad","#3498db","#e91e63","#1abc9c","#f1c40f"];
+  const numParticles = 200;
+
+  class Particle {
+    constructor() {
+      this.reset();
+    }
+    reset() {
+      this.x = Math.random() * canvas.width;
+      this.y = Math.random() * canvas.height;
+      this.vx = (Math.random() - 0.5) * 0.3;
+      this.vy = (Math.random() - 0.5) * 0.3;
+      this.size = Math.random() * 50 + 50;
+      this.color = colors[Math.floor(Math.random() * colors.length)];
+    }
+    draw() {
+      const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+      gradient.addColorStop(0, this.color + "AA");
+      gradient.addColorStop(1, this.color + "00");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+      ctx.fill();
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+    }
+  }
+
+  for (let i=0; i<numParticles; i++) particles.push(new Particle());
+
+  function animate() {
+    ctx.fillStyle = "rgba(0,0,0,0.05)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    for (let p of particles) { p.update(); p.draw(); }
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+</script>
 </body>
 </html>
