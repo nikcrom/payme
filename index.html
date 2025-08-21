@@ -1,132 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pay Me</title>
-<style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fluid Paint Payment</title>
+  <style>
     html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        overflow: hidden;
-        font-family: Arial, sans-serif;
-        background: #0a0028;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: black;
     }
 
-    canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 0;
+    #payButton {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 25px 60px;
+      font-size: 2rem;
+      color: white;
+      border: none;
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(255,255,255,0.5);
+      transition: all 0.2s ease;
     }
 
-    .container {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1;
+    #payButton:hover {
+      box-shadow: 0 0 40px rgba(255,255,255,0.8);
+      transform: translate(-50%, -50%) scale(1.05);
     }
-
-    .pay-button {
-        background: rgba(255,255,255,0.85);
-        border: none;
-        border-radius: 12px;
-        padding: 20px 40px;
-        font-size: 1.5em;
-        cursor: pointer;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        transition: transform 0.2s;
-        backdrop-filter: blur(10px);
-    }
-
-    .pay-button:hover {
-        transform: scale(1.05);
-    }
-</style>
+  </style>
 </head>
 <body>
-<canvas id="canvas"></canvas>
-<div class="container">
-    <button class="pay-button" onclick="handlePayment()">Pay Me</button>
-</div>
+  <button id="payButton">Pay Me</button>
 
-<script>
-// Canvas setup
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-let width, height;
+  <!-- Three.js for animated background -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+  <!-- Stripe.js -->
+  <script src="https://js.stripe.com/v3/"></script>
 
-function resize() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+  <script>
+    /*******************
+     * STRIPE INTEGRATION
+     *******************/
+    // Replace YOUR_PUBLISHABLE_KEY_HERE with your Stripe publishable key
+    const stripe = Stripe('pk_test_51RyVvnQq9irdI5zljZR2H5q3DaB49bE2tXnj5eUomiAhfUcQLNFlXA121pcayHqrLwF81BLq6Pz3DLOuaWDQyglZ00Gp7xe3ql');
 
-// Layers for swirling paint
-const layers = [
-    {color:'rgba(200,100,250,0.5)', angle:0, speed:0.002, radius: 400},
-    {color:'rgba(100,200,250,0.5)', angle:Math.PI/2, speed:0.003, radius: 350},
-    {color:'rgba(250,150,200,0.5)', angle:Math.PI, speed:0.0015, radius: 450},
-];
-
-// Glitter effect points
-const glitterCount = 200;
-const glitter = [];
-for(let i=0; i<glitterCount; i++){
-    glitter.push({
-        x: Math.random()*width,
-        y: Math.random()*height,
-        size: Math.random()*2 + 1,
-        alpha: Math.random(),
-        speedX: (Math.random()-0.5)*0.3,
-        speedY: (Math.random()-0.5)*0.3
-    });
-}
-
-function draw() {
-    ctx.fillStyle = 'rgba(10,0,40,0.1)';
-    ctx.fillRect(0,0,width,height);
-
-    // Draw swirling paint layers
-    layers.forEach(layer => {
-        layer.angle += layer.speed;
-        const x = width/2 + Math.cos(layer.angle)*layer.radius;
-        const y = height/2 + Math.sin(layer.angle)*layer.radius;
-        const grd = ctx.createRadialGradient(x, y, 0, x, y, layer.radius);
-        grd.addColorStop(0, layer.color);
-        grd.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = grd;
-        ctx.fillRect(0,0,width,height);
+    document.getElementById('payButton').addEventListener('click', async () => {
+      // Make sure you set up your server endpoint to create a session
+      const response = await fetch('/create-checkout-session', { method: 'POST' });
+      const session = await response.json();
+      const result = await stripe.redirectToCheckout({ sessionId: session.id });
+      if (result.error) {
+        alert(result.error.message);
+      }
     });
 
-    // Draw glitter points
-    glitter.forEach(g => {
-        g.x += g.speedX;
-        g.y += g.speedY;
-        if(g.x < 0) g.x = width;
-        if(g.x > width) g.x = 0;
-        if(g.y < 0) g.y = height;
-        if(g.y > height) g.y = 0;
-        ctx.fillStyle = `rgba(255,255,255,${g.alpha})`;
-        ctx.beginPath();
-        ctx.arc(g.x, g.y, g.size, 0, Math.PI*2);
-        ctx.fill();
-    });
+    /*******************
+     * ANIMATED BACKGROUND
+     *******************/
+    let scene, camera, renderer, uniforms, clock;
 
-    requestAnimationFrame(draw);
-}
+    function init() {
+      scene = new THREE.Scene();
+      camera = new THREE.Camera();
+      camera.position.z = 1;
+      clock = new THREE.Clock();
 
-draw();
+      const geometry = new THREE.PlaneGeometry(2, 2);
 
-// Placeholder payment function
-function handlePayment(){
-    alert("Replace this with your Stripe checkout code!");
-}
-</script>
+      uniforms = {
+        u_time: { value: 0 },
+        u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      };
+
+      const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          precision highp float;
+          uniform float u_time;
+          uniform vec2 u_resolution;
+          varying vec2 vUv;
+
+          // Simple swirl noise function
+          float random(vec2 st) {
+            return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+          }
+
+          void main() {
+            vec2 uv = vUv;
+            vec2 center = uv - 0.5;
+
+            // swirling effect
+            float angle = 3.0 * length(center) - u_time*0.5;
+            float s = sin(angle);
+            float c = cos(angle);
+            uv = vec2(
+              0.5 + (center.x * c - center.y * s),
+              0.5 + (center.x * s + center.y * c)
+            );
+
+            // color palette inspired by pink & blue glitter paint
+            vec3 color = vec3(0.5 + 0.5*sin(u_time + uv.xyx*10.0));
+            color = mix(color, vec3(0.8,0.2,0.9), 0.5*random(uv*10.0));
+
+            gl_FragColor = vec4(color,1.0);
+          }
+        `
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+      });
+
+      animate();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      uniforms.u_time.value = clock.getElapsedTime();
+      renderer.render(scene, camera);
+    }
+
+    init();
+  </script>
 </body>
 </html>
