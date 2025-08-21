@@ -1,21 +1,23 @@
 import Stripe from "stripe";
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe("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"); // Secret key
 
 export default async function handler(req, res) {
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card", "apple_pay", "google_pay"],
-    line_items: [{
-      price_data: {
-        currency: "usd",
-        product_data: { name: "Donation" },
-        unit_amount: 500, // $5 donation
-      },
-      quantity: 1,
-    }],
-    mode: "payment",
-    success_url: `${req.headers.origin}/success`,
-    cancel_url: `${req.headers.origin}/cancel`,
-  });
+  if (req.method === "POST") {
+    const { amount } = req.body;
 
-  res.status(200).json({ id: session.id });
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount,
+        currency: "gbp",
+        automatic_payment_methods: { enabled: true },
+      });
+      res.status(200).json({ clientSecret: paymentIntent.client_secret });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  } else {
+    res.setHeader("Allow", "POST");
+    res.status(405).end("Method Not Allowed");
+  }
 }
+
