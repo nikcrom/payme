@@ -82,6 +82,30 @@ paymentRequest.canMakePayment().then(function(result) {
 document.getElementById('amount').addEventListener('input', function(e) {
   const amount = Math.round(parseFloat(e.target.value || 0) * 100);
   paymentRequest.update({ total: { label: 'Support Me', amount } });
+  paymentRequest.on('paymentmethod', async function(ev) {
+  // 1. Create a PaymentIntent on your server
+  const response = await fetch('/create-payment-intent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount: Math.round(parseFloat(document.getElementById('amount').value || 0) * 100) })
+  });
+
+  const data = await response.json();
+
+  // 2. Confirm the PaymentIntent with Stripe (remove handleActions: false)
+  const { error, paymentIntent } = await stripe.confirmCardPayment(
+    data.clientSecret, 
+    { payment_method: ev.paymentMethod.id }
+  );
+
+  // 3. Complete the payment request
+  if (error) {
+    ev.complete('fail');
+    alert(error.message);
+  } else {
+    ev.complete('success');
+    alert('Payment successful! 🎉');
+  }
 });
 
 paymentRequest.on('paymentmethod', async (ev) => {
@@ -167,5 +191,6 @@ paymentRequest.on('paymentmethod', async (ev) => {
   </script>
 </body>
 </html>
+
 
 
