@@ -60,38 +60,28 @@
   </div>
 
   <script>
-// ===== Stripe Payment Button =====
-const stripe = Stripe("pk_live_51RyVvaJZHuoDKxP5M5TtgRNsQt6UklE2821jmwfWIZVJUcWwKp8NK1xXM6o39ZVpvGyM9ZmS0u63DdykbSuIciv600OxmfmeHS");
+    // ===== Stripe Payment Button (working code) =====
+    const stripe = Stripe("pk_live_51RyVvaJZHuoDKxP5M5TtgRNsQt6UklE2821jmwfWIZVJUcWwKp8NK1xXM6o39ZVpvGyM9ZmS0u63DdykbSuIciv600OxmfmeHS"); 
 
-const amountInput = document.getElementById("amount");
-const payButtonContainer = document.getElementById("payment-request-button");
+    const paymentRequest = stripe.paymentRequest({
+      country: 'GB',
+      currency: 'gbp',
+      total: { label: 'Support Me', amount: 0 },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
 
-payButtonContainer.innerHTML = '<button id="pay-btn">Pay Now</button>';
-const payBtn = document.getElementById("pay-btn");
+    const elements = stripe.elements();
+    const prButton = elements.create('paymentRequestButton', { paymentRequest });
 
-payBtn.addEventListener("click", async () => {
-  const amount = Math.round(parseFloat(amountInput.value || 0) * 100);
-  if (amount <= 0) return alert("Enter a valid amount!");
+    paymentRequest.canMakePayment().then(function(result) {
+      if (result) prButton.mount('#payment-request-button');
+      else document.getElementById('payment-request-button').style.display = 'none';
+    });
 
-  // Call serverless function to create payment intent
-  const res = await fetch("/api/create-payment-intent", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount }),
-  });
-  const data = await res.json();
-
-  if (data.error) return alert(data.error);
-
-  // Confirm card payment using Stripe.js
-  const { error } = await stripe.confirmCardPayment(data.clientSecret, {
-    payment_method: { card: { } }, // This will trigger Stripe PaymentRequest UI
-  });
-
-  if (error) alert(error.message);
-  else alert("Payment successful! Thank you.");
-});
-
+    document.getElementById('amount').addEventListener('input', function(e) {
+      const amount = Math.round(parseFloat(e.target.value || 0) * 100);
+      paymentRequest.update({ total: { label: 'Support Me', amount: amount } });
     });
 
     // ===== Animated Paint Background =====
@@ -147,4 +137,3 @@ payBtn.addEventListener("click", async () => {
   </script>
 </body>
 </html>
-
