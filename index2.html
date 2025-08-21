@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One Tap Pay</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: black;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+    .container {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      background: rgba(255,255,255,0.3);
+      backdrop-filter: blur(10px);
+      padding: 2rem;
+      border-radius: 12px;
+      width: 300px;
+      margin: auto;
+      top: 50%;
+      transform: translateY(-50%);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    input {
+      width: 100%;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    #payment-request-button {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+
+  <div class="container">
+    <h2>Support Me</h2>
+    <p>Enter an amount (£):</p>
+    <input type="number" id="amount" placeholder="e.g. 5" min="1" step="0.01">
+    <div id="payment-request-button"></div>
+  </div>
+
+  <script>
+    // ===== Stripe Payment Button (working code) =====
+    const stripe = Stripe("pk_test_51RyVvnQq9irdI5zljZR2H5q3DaB49bE2tXnj5eUomiAhfUcQLNFlXA121pcayHqrLwF81BLq6Pz3DLOuaWDQyglZ00Gp7xe3ql"); 
+
+    const paymentRequest = stripe.paymentRequest({
+      country: 'GB',
+      currency: 'gbp',
+      total: { label: 'Support Me', amount: 0 },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+
+    const elements = stripe.elements();
+    const prButton = elements.create('paymentRequestButton', { paymentRequest });
+
+    paymentRequest.canMakePayment().then(function(result) {
+      if (result) prButton.mount('#payment-request-button');
+      else document.getElementById('payment-request-button').style.display = 'none';
+    });
+
+    document.getElementById('amount').addEventListener('input', function(e) {
+      const amount = Math.round(parseFloat(e.target.value || 0) * 100);
+      paymentRequest.update({ total: { label: 'Support Me', amount: amount } });
+    });
+
+    // ===== Animated Paint Background =====
+    const canvas = document.getElementById("bg");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = [];
+    const colors = ["#8e44ad","#3498db","#e91e63","#1abc9c","#f1c40f"];
+    const numParticles = 200;
+
+    class Particle {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = (Math.random() - 0.5) * 0.3;
+        this.vy = (Math.random() - 0.5) * 0.3;
+        this.size = Math.random() * 50 + 50;
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+      }
+      draw() {
+        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+        gradient.addColorStop(0, this.color + "AA");
+        gradient.addColorStop(1, this.color + "00");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+      }
+    }
+
+    for (let i=0; i<numParticles; i++) particles.push(new Particle());
+
+    function animate() {
+      ctx.fillStyle = "rgba(0,0,0,0.05)";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      for (let p of particles) { p.update(); p.draw(); }
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.addEventListener("resize", () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>
