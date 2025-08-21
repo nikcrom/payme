@@ -96,11 +96,10 @@ paymentRequest.on('paymentmethod', async (ev) => {
 
   const data = await res.json();
 
-  // 2. Confirm the payment
-  const { error } = await stripe.confirmCardPayment(
+  // 2. Confirm the payment (remove handleActions: false)
+  const { error, paymentIntent } = await stripe.confirmCardPayment(
     data.clientSecret,
-    { payment_method: ev.paymentMethod.id },
-    { handleActions: false }
+    { payment_method: ev.paymentMethod.id }
   );
 
   if (error) {
@@ -111,6 +110,7 @@ paymentRequest.on('paymentmethod', async (ev) => {
     alert('Payment successful! 🎉');
   }
 });
+
 
 
 
@@ -167,4 +167,5 @@ paymentRequest.on('paymentmethod', async (ev) => {
   </script>
 </body>
 </html>
+
 
