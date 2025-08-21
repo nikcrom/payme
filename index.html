@@ -63,34 +63,25 @@
     // ===== Stripe Payment Button (working code) =====
     const stripe = Stripe("pk_live_51RyVvaJZHuoDKxP5M5TtgRNsQt6UklE2821jmwfWIZVJUcWwKp8NK1xXM6o39ZVpvGyM9ZmS0u63DdykbSuIciv600OxmfmeHS"); 
 
-document.getElementById('amount').addEventListener('input', async function(e) {
-  const amount = parseFloat(e.target.value || 0) * 100; // convert to pence
+    const paymentRequest = stripe.paymentRequest({
+      country: 'GB',
+      currency: 'gbp',
+      total: { label: 'Support Me', amount: 0 },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
 
-  if (amount < 100) return; // minimum £1
+    const elements = stripe.elements();
+    const prButton = elements.create('paymentRequestButton', { paymentRequest });
 
-  // call your backend to create PaymentIntent
-  const response = await fetch('/api/create-checkout-session.js', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount }),
-  });
-  const data = await response.json();
-  const clientSecret = data.clientSecret;
+    paymentRequest.canMakePayment().then(function(result) {
+      if (result) prButton.mount('#payment-request-button');
+      else document.getElementById('payment-request-button').style.display = 'none';
+    });
 
-  // confirm payment with Stripe
-  const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-    payment_method: {
-      card: elements.create('card'),
-      billing_details: { name: 'Supporter' },
-    }
-  });
-
-  if (error) {
-    alert('Payment failed: ' + error.message);
-  } else if (paymentIntent.status === 'succeeded') {
-    alert('Payment succeeded!');
-  }
-});
+    document.getElementById('amount').addEventListener('input', function(e) {
+      const amount = Math.round(parseFloat(e.target.value || 0) * 100);
+      paymentRequest.update({ total: { label: 'Support Me', amount: amount } });
     });
 
     // ===== Animated Paint Background =====
@@ -146,4 +137,3 @@ document.getElementById('amount').addEventListener('input', async function(e) {
   </script>
 </body>
 </html>
-
