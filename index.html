@@ -5,94 +5,128 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pay Me</title>
 <style>
-  html, body {
-    margin: 0;
-    height: 100%;
-    overflow: hidden;
-    font-family: sans-serif;
-  }
-  #canvas {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    display: block;
-    z-index: 0;
-  }
-  .pay-button {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.85);
-    border: none;
-    border-radius: 12px;
-    padding: 20px 40px;
-    font-size: 1.5em;
-    cursor: pointer;
-    z-index: 1;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    transition: transform 0.2s;
-  }
-  .pay-button:hover {
-    transform: translate(-50%, -50%) scale(1.05);
-  }
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+        background: #0a0028;
+    }
+
+    canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 0;
+    }
+
+    .container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1;
+    }
+
+    .pay-button {
+        background: rgba(255,255,255,0.85);
+        border: none;
+        border-radius: 12px;
+        padding: 20px 40px;
+        font-size: 1.5em;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        transition: transform 0.2s;
+        backdrop-filter: blur(10px);
+    }
+
+    .pay-button:hover {
+        transform: scale(1.05);
+    }
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
-<button class="pay-button" id="payButton">Pay Me</button>
+<div class="container">
+    <button class="pay-button" onclick="handlePayment()">Pay Me</button>
+</div>
 
 <script>
+// Canvas setup
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let width, height;
+
 function resize() {
-  width = canvas.width = window.innerWidth;
-  height = canvas.height = window.innerHeight;
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
 }
 window.addEventListener('resize', resize);
 resize();
 
-// Particle system for swirling glitter effect
-const particles = [];
-const numParticles = 200;
-for(let i=0;i<numParticles;i++){
-  particles.push({
-    x: Math.random()*width,
-    y: Math.random()*height,
-    r: Math.random()*2+1,
-    angle: Math.random()*Math.PI*2,
-    speed: Math.random()*0.02+0.01,
-    color: `hsl(${Math.random()*360}, 80%, 70%)`
-  });
+// Layers for swirling paint
+const layers = [
+    {color:'rgba(200,100,250,0.5)', angle:0, speed:0.002, radius: 400},
+    {color:'rgba(100,200,250,0.5)', angle:Math.PI/2, speed:0.003, radius: 350},
+    {color:'rgba(250,150,200,0.5)', angle:Math.PI, speed:0.0015, radius: 450},
+];
+
+// Glitter effect points
+const glitterCount = 200;
+const glitter = [];
+for(let i=0; i<glitterCount; i++){
+    glitter.push({
+        x: Math.random()*width,
+        y: Math.random()*height,
+        size: Math.random()*2 + 1,
+        alpha: Math.random(),
+        speedX: (Math.random()-0.5)*0.3,
+        speedY: (Math.random()-0.5)*0.3
+    });
 }
 
 function draw() {
-  ctx.fillStyle = 'rgba(10, 0, 40, 0.2)';
-  ctx.fillRect(0,0,width,height);
+    ctx.fillStyle = 'rgba(10,0,40,0.1)';
+    ctx.fillRect(0,0,width,height);
 
-  for(let p of particles){
-    p.angle += p.speed;
-    const radius = 200 + Math.sin(Date.now()*0.001)*50;
-    p.x = width/2 + Math.cos(p.angle)*(radius + p.r*10);
-    p.y = height/2 + Math.sin(p.angle)*(radius + p.r*10);
-    
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-    ctx.fillStyle = p.color;
-    ctx.fill();
-  }
+    // Draw swirling paint layers
+    layers.forEach(layer => {
+        layer.angle += layer.speed;
+        const x = width/2 + Math.cos(layer.angle)*layer.radius;
+        const y = height/2 + Math.sin(layer.angle)*layer.radius;
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, layer.radius);
+        grd.addColorStop(0, layer.color);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0,0,width,height);
+    });
 
-  requestAnimationFrame(draw);
+    // Draw glitter points
+    glitter.forEach(g => {
+        g.x += g.speedX;
+        g.y += g.speedY;
+        if(g.x < 0) g.x = width;
+        if(g.x > width) g.x = 0;
+        if(g.y < 0) g.y = height;
+        if(g.y > height) g.y = 0;
+        ctx.fillStyle = `rgba(255,255,255,${g.alpha})`;
+        ctx.beginPath();
+        ctx.arc(g.x, g.y, g.size, 0, Math.PI*2);
+        ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
 }
+
 draw();
 
-// Stripe integration
-const payButton = document.getElementById('payButton');
-payButton.addEventListener('click', async () => {
-  // call your backend create-payment-intent and handle Stripe checkout here
-  alert("This would trigger the payment flow!");
-});
+// Placeholder payment function
+function handlePayment(){
+    alert("Replace this with your Stripe checkout code!");
+}
 </script>
 </body>
 </html>
